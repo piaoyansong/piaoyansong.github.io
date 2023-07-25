@@ -1,32 +1,64 @@
-extends includes/layout.pug
+const { Component } = require('inferno');
+const Head = require('./common/head');
+const Navbar = require('./common/navbar');
+const Widgets = require('./common/widgets');
+const Footer = require('./common/footer');
+const Scripts = require('./common/scripts');
+const Search = require('./common/search');
+const classname = require('./util/classname');
 
-block content
-  #post
-    if top_img === false
-      include includes/header/post-info.pug
+module.exports = class extends Component {
+    render() {
+        const { env, site, config, page, helper, body } = this.props;
 
-    article#article-container.post-content!=page.content
-    include includes/post/post-copyright.pug
-    .tag_share
-      if (theme.post_meta.post.tags)
-        .post-meta__tag-list
-          each item, index in page.tags.data
-            a(href=url_for(item.path)).post-meta__tags #[=item.name]
-      include includes/third-party/share/index.pug
-        
-    if theme.reward.enable && theme.reward.QR_code
-      !=partial('includes/post/reward', {}, {cache: true})
+        const{ comment } = config;
 
-    //- ad
-    if theme.ad && theme.ad.post
-      .ads-wrap!=theme.ad.post
+        // =====index hot_recommend
+        var hotRecommendStr =
+            "<div class=\"card widget\">" +
+            "   <div class=\"card-content\">" +
+            "       <h3 class=\"menu-label\">热门推荐</h3><span id=\"index_hot_div\">加载中，稍等几秒...</span>" +
+            "   </div>" +
+            "</div>";
 
-    if theme.post_pagination
-      include includes/pagination.pug
-    if theme.related_post && theme.related_post.enable
-      != related_posts(page,site.posts)
+        if (page.path != 'index.html'
+            || (comment.type == 'undefined'
+                || comment.type != 'gitalk'
+                || comment.has_hot_recommend == 'undefined'
+                || !comment.has_hot_recommend)) {
+            hotRecommendStr = '';
+        }
+        // =====
 
-    if page.comments !== false && theme.comments && theme.comments.use
-      - var commentsJsLoad = true
-      !=partial('includes/third-party/comments/index', {}, {cache: true})
-      
+        const language = page.lang || page.language || config.language;
+        const columnCount = Widgets.getColumnCount(config.widgets);
+
+        return <html lang={language ? language.substr(0, 2) : ''}>
+            <Head env={env} site={site} config={config} helper={helper} page={page} />
+            <body class={`is-${columnCount}-column has-navbar-fixed-top`}>
+                <Navbar config={config} helper={helper} page={page} />
+                <script type="text/javascript" src="/js/theme-setting.js"></script>
+                <section class="section">
+                    <div class="container">
+                        <div class="columns">
+                            <div class={classname({
+                                column: true,
+                                'order-2': true,
+                                'column-main': true,
+                                'is-12': columnCount === 1,
+                                'is-8-tablet is-8-desktop is-8-widescreen': columnCount === 2,
+                                'is-8-tablet is-8-desktop is-6-widescreen': (page.layout != 'post' && page.layout != 'page') && columnCount === 3,
+                                'is-8-tablet is-8-desktop is-9-widescreen': page.layout == 'page' || page.layout == 'post'
+                            })} dangerouslySetInnerHTML={{ __html: hotRecommendStr+body }}></div>
+                            <Widgets site={site} config={config} helper={helper} page={page} position={'left'} />
+                            { page.layout == 'page' || page.layout == 'post' ? null : <Widgets site={site} config={config} helper={helper} page={page} position={'right'} />}
+                        </div>
+                    </div>
+                </section>
+                <Footer config={config} helper={helper} />
+                <Scripts site={site} config={config} helper={helper} page={page} />
+                <Search config={config} helper={helper} />
+            </body>
+        </html>;
+    }
+};
